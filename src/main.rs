@@ -15,12 +15,12 @@ fn main() {
     let args: Vec<OsString> = args.collect();
 
     let mut retry = env::var_os("RESTARTER_RETRIES")
-        .and_then(|env_retries| env_retries.into_string().ok())
+        .and_then(|os_string| os_string.into_string().ok())
         .and_then(|string| string.parse().ok())
         .unwrap_or(3);
 
     let fast_fail_seconds = env::var_os("RESTARTER_FAST_FAIL_SECONDS")
-        .and_then(|env_retries| env_retries.into_string().ok())
+        .and_then(|os_string| os_string.into_string().ok())
         .and_then(|string| string.parse().ok())
         .unwrap_or(1);
 
