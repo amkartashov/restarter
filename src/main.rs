@@ -85,8 +85,11 @@ fn main() {
             // killed by signal, stop retrying
             // https://github.com/krallin/tini/blob/master/src/tini.c#L573
             None => {
-                ecode = 128 + estatus.signal().unwrap();
-                break;
+                let sig_id = estatus.signal().unwrap();
+                ecode = 128 + sig_id;
+                if signal_hook::consts::TERM_SIGNALS.contains(&sig_id) {
+                    break;
+                };
             }
         }
 
