@@ -1,0 +1,7 @@
+/target
+
+# bazel symlinks
+/bazel-bin
+/bazel-out
+/bazel-restarter
+/bazel-testlogs

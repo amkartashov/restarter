@@ -1,0 +1,10 @@
+load("@rules_rust//rust:rust.bzl", "rust_binary")
+
+rust_binary(
+    name = "restarter",
+    srcs = ["src/main.rs"],
+    deps = [
+        "//cargo:libc",
+        "//cargo:signal_hook",
+    ],
+)
