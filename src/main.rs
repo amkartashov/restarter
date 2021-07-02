@@ -71,11 +71,12 @@ fn main() {
             // normal exit
             Some(code) => ecode = code,
 
-            // killed by signal, stop retrying
+            // killed by signal
             // https://github.com/krallin/tini/blob/master/src/tini.c#L573
             None => {
                 let sig_id = estatus.signal().unwrap();
                 ecode = 128 + sig_id;
+                // stop retrying if it was termination signal
                 if signal_hook::consts::TERM_SIGNALS.contains(&sig_id) {
                     break;
                 };
