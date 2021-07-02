@@ -1,10 +1,10 @@
 use signal_hook::{consts::signal::*, iterator::Signals};
 use std::env;
 use std::ffi::OsString;
+use std::os::unix::process::ExitStatusExt;
 use std::process;
 use std::process::Command;
 use std::time::Instant;
-use std::os::unix::process::ExitStatusExt;
 
 fn main() {
     let mut args = env::args_os();
@@ -15,14 +15,14 @@ fn main() {
     let args: Vec<OsString> = args.collect();
 
     let mut retry = env::var_os("RESTARTER_RETRIES")
-    .and_then(|env_retries| env_retries.into_string().ok())
-    .and_then(|string| string.parse().ok())
-    .unwrap_or(3);
+        .and_then(|env_retries| env_retries.into_string().ok())
+        .and_then(|string| string.parse().ok())
+        .unwrap_or(3);
 
     let fast_fail_seconds = env::var_os("RESTARTER_FAST_FAIL_SECONDS")
-    .and_then(|env_retries| env_retries.into_string().ok())
-    .and_then(|string| string.parse().ok())
-    .unwrap_or(1);
+        .and_then(|env_retries| env_retries.into_string().ok())
+        .and_then(|string| string.parse().ok())
+        .unwrap_or(1);
 
     // all signals except for
     // SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGABRT, SIGTRAP, SIGSYS, SIGTTIN, SIGTTOU, SIGCHLD, SIGSTOP, SIGKILL
@@ -44,7 +44,8 @@ fn main() {
 
         let child_pid = child.id() as libc::pid_t;
 
-        loop { // try wait and forward signals
+        loop {
+            // try wait and forward signals
 
             if let Some(_) = child
                 .try_wait()
