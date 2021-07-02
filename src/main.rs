@@ -1,6 +1,3 @@
-extern crate libc;
-extern crate signal_hook;
-
 use signal_hook::{consts::signal::*, iterator::Signals};
 use std::env;
 use std::ffi::OsString;
@@ -17,24 +14,15 @@ fn main() {
 
     let args: Vec<OsString> = args.collect();
 
-    let mut retry = 3u16;
-    let mut fast_fail_seconds = 1;
+    let mut retry = env::var_os("RESTARTER_RETRIES")
+    .and_then(|env_retries| env_retries.into_string().ok())
+    .and_then(|string| string.parse().ok())
+    .unwrap_or(3);
 
-    if let Some(env_retries) = env::var_os("RESTARTER_RETRIES") {
-        if let Ok(string) = env_retries.into_string() {
-            if let Ok(integer) = string.parse() {
-                retry = integer;
-            }
-        }
-    };
-
-    if let Some(env_fast_fail_seconds) = env::var_os("RESTARTER_FAST_FAIL_SECONDS") {
-        if let Ok(string) = env_fast_fail_seconds.into_string() {
-            if let Ok(integer) = string.parse() {
-                fast_fail_seconds = integer;
-            }
-        }
-    };
+    let fast_fail_seconds = env::var_os("RESTARTER_FAST_FAIL_SECONDS")
+    .and_then(|env_retries| env_retries.into_string().ok())
+    .and_then(|string| string.parse().ok())
+    .unwrap_or(1);
 
     // all signals except for
     // SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGABRT, SIGTRAP, SIGSYS, SIGTTIN, SIGTTOU, SIGCHLD, SIGSTOP, SIGKILL
