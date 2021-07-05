@@ -1,18 +1,82 @@
-use log::{error, debug};
+use log::{debug, error};
+use serde_json::json;
 use signal_hook::{consts::signal::*, iterator::Signals};
 use std::env;
 use std::error::Error;
 use std::ffi::OsString;
 use std::fmt::Debug;
+use std::io::Write;
 use std::os::unix::process::ExitStatusExt;
 use std::process::Command;
 use std::time::Instant;
 
 pub fn configure_logger() -> Result<(), Box<dyn Error>> {
-    let env = env_logger::Env::new()
-        .filter("RESTARTER_LOG")
-        .write_style("RESTARTER_LOG_STYLE");
-    env_logger::try_init_from_env(env)?;
+    let mut builder = env_logger::Builder::from_env("RESTARTER_LOG");
+
+    let log_encoder = env::var_os("RESTARTER_LOG_ENCODER")
+        .and_then(|os_string| os_string.into_string().ok())
+        .and_then(|string| string.parse().ok())
+        .unwrap_or("console".to_string());
+
+    if log_encoder != "console" && log_encoder != "json" {
+        Err("RESTARTER_LOG_ENCODER can be `json` or `console` (default).")?
+    };
+
+    if log_encoder == "console" {
+        builder.format(|buf, record| {
+            let ts = buf.timestamp_nanos();
+            match (record.module_path(), record.file(), record.line()) {
+                (Some(m), Some(f), Some(l)) => writeln!(
+                    buf,
+                    "{} {}\t{}/{}:{} {}",
+                    ts,
+                    record.level(),
+                    m,
+                    f,
+                    l,
+                    record.args(),
+                ),
+                _ => writeln!(buf, "{} {}\t{}", ts, record.level(), record.args(),),
+            }
+        });
+    } else {
+        builder.format(|buf, record| {
+            let ts = buf.timestamp_nanos();
+            let level = match record.level().as_str() {
+                "WARN" => "WARNING",  // Google Cloud Logging expects WARNING: https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
+                other => other
+            };
+            // for details, see https://cloud.google.com/logging/docs/structured-logging
+            match (record.module_path(), record.file(), record.line()) {
+                (Some(m), Some(f), Some(l)) => writeln!(
+                    buf,
+                    "{}",
+                    json!({
+                        "severity": level,
+                        "time": ts.to_string(),
+                        "message": std::fmt::format(*record.args()),
+                        "logging.googleapis.com/sourceLocation": {
+                            "function": m, // actually, this is a module name, but we a limited here
+                            "file": f,
+                            "line": l,
+                        },
+                    })
+                    .to_string(),
+                ),
+                _ => writeln!(
+                    buf,
+                    "{}",
+                    json!({
+                       "severity": level,
+                       "time": ts.to_string(),
+                       "message": std::fmt::format(*record.args()),
+                    })
+                    .to_string(),
+                ),
+            }
+        });
+    };
+    builder.try_init()?;
     Ok(())
 }
 

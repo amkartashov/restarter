@@ -33,3 +33,10 @@ To sum up, **restater** will stop in below cases:
 2) service fails too fast;
 3) service is killed with termination signal;
 4) service finished successfully.
+### Logging
+
+Logging is configured via env variables `RESTARTER_LOG` and `RESTARTER_LOG_ENCODER`.
+
+Possible values for `RESTARTER_LOG` can be checked in [env_logger docs](https://docs.rs/env_logger/0.8.4/env_logger/#enabling-logging), you can think that it is `warn` by default. You can disable **restarter** log messages with `RESTARTER_LOG=off` and enable debug with `RESTARTER_LOG=debug`.
+
+`RESTARTER_LOG_ENCODER` allows to set log formatting, by default it is `console` (single line messages). To emit Json messages suitable for Google Cloud Logging, set it to `json`.

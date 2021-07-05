@@ -9,6 +9,7 @@ rust_library(
         "//cargo:signal_hook",
         "//cargo:log",
         "//cargo:env_logger",
+        "//cargo:serde_json",
     ],
 )
 

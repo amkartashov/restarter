@@ -73,6 +73,16 @@ def raze_fetch_remote_crates():
 
     maybe(
         http_archive,
+        name = "raze__itoa__0_4_7",
+        url = "https://crates.io/api/v1/crates/itoa/0.4.7/download",
+        type = "tar.gz",
+        sha256 = "dd25036021b0de88a0aff6b850051563c6516d0bf53f8638938edbb9de732736",
+        strip_prefix = "itoa-0.4.7",
+        build_file = Label("//cargo/remote:BUILD.itoa-0.4.7.bazel"),
+    )
+
+    maybe(
+        http_archive,
         name = "raze__libc__0_2_97",
         url = "https://crates.io/api/v1/crates/libc/0.2.97/download",
         type = "tar.gz",
@@ -119,6 +129,36 @@ def raze_fetch_remote_crates():
         sha256 = "f497285884f3fcff424ffc933e56d7cbca511def0c9831a7f9b5f6153e3cc89b",
         strip_prefix = "regex-syntax-0.6.25",
         build_file = Label("//cargo/remote:BUILD.regex-syntax-0.6.25.bazel"),
+    )
+
+    maybe(
+        http_archive,
+        name = "raze__ryu__1_0_5",
+        url = "https://crates.io/api/v1/crates/ryu/1.0.5/download",
+        type = "tar.gz",
+        sha256 = "71d301d4193d031abdd79ff7e3dd721168a9572ef3fe51a1517aba235bd8f86e",
+        strip_prefix = "ryu-1.0.5",
+        build_file = Label("//cargo/remote:BUILD.ryu-1.0.5.bazel"),
+    )
+
+    maybe(
+        http_archive,
+        name = "raze__serde__1_0_126",
+        url = "https://crates.io/api/v1/crates/serde/1.0.126/download",
+        type = "tar.gz",
+        sha256 = "ec7505abeacaec74ae4778d9d9328fe5a5d04253220a85c4ee022239fc996d03",
+        strip_prefix = "serde-1.0.126",
+        build_file = Label("//cargo/remote:BUILD.serde-1.0.126.bazel"),
+    )
+
+    maybe(
+        http_archive,
+        name = "raze__serde_json__1_0_64",
+        url = "https://crates.io/api/v1/crates/serde_json/1.0.64/download",
+        type = "tar.gz",
+        sha256 = "799e97dc9fdae36a5c8b8f2cae9ce2ee9fdce2058c57a93e6099d919fd982f79",
+        strip_prefix = "serde_json-1.0.64",
+        build_file = Label("//cargo/remote:BUILD.serde_json-1.0.64.bazel"),
     )
 
     maybe(
