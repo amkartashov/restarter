@@ -8,6 +8,8 @@ edition = "2018"
 [dependencies]
 signal-hook = "0.3.9"
 libc = "0.2.97"
+log = "0.4.14"
+env_logger = "0.8.4"
 
 [profile.release]
 #opt-level = 'z'     # Optimize for size.

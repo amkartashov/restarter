@@ -1,18 +1,25 @@
-use restarter::{Config, run};
+use log::{info, error};
+use restarter::{configure_logger, run, Config};
 use std::process;
 
 fn main() {
+    if let Err(err) = configure_logger() {
+        eprintln!("RESTARTER: failed to configure logger: {:?}", err);
+        process::exit(1);
+    };
+
     let config = Config::new().unwrap_or_else(|err| {
-        eprintln!("RESTARTER: configuration error: {}", err);
+        error!("configuration error: {:?}", err);
         process::exit(1);
     });
 
+    info!("{:?}", config);
+
     match run(config) {
         Ok(code) => process::exit(code),
-        Err(msg) => {
-            eprintln!("RESTARTER: {}", msg);
+        Err(err) => {
+            error!("{:?}", err);
             process::exit(1);
         }
     }
-
 }

@@ -7,6 +7,8 @@ rust_library(
     deps = [
         "//cargo:libc",
         "//cargo:signal_hook",
+        "//cargo:log",
+        "//cargo:env_logger",
     ],
 )
 
@@ -15,5 +17,6 @@ rust_binary(
     srcs = ["src/main.rs"],
     deps = [
         ":restarter_lib",
+        "//cargo:log",
     ],
 )

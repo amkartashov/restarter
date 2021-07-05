@@ -1,12 +1,22 @@
+use log::{error, debug};
 use signal_hook::{consts::signal::*, iterator::Signals};
 use std::env;
 use std::error::Error;
 use std::ffi::OsString;
-use std::fmt;
+use std::fmt::Debug;
 use std::os::unix::process::ExitStatusExt;
 use std::process::Command;
 use std::time::Instant;
 
+pub fn configure_logger() -> Result<(), Box<dyn Error>> {
+    let env = env_logger::Env::new()
+        .filter("RESTARTER_LOG")
+        .write_style("RESTARTER_LOG_STYLE");
+    env_logger::try_init_from_env(env)?;
+    Ok(())
+}
+
+#[derive(Debug)]
 pub struct Config {
     pub binary: OsString,
     pub args: Vec<OsString>,
@@ -42,32 +52,7 @@ impl Config {
     }
 }
 
-#[derive(Debug)]
-pub struct RestarterError {
-    msg: String,
-}
-
-impl RestarterError {
-    fn new(msg: &str) -> RestarterError {
-        RestarterError {
-            msg: msg.to_string(),
-        }
-    }
-}
-
-impl fmt::Display for RestarterError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{}", self.msg)
-    }
-}
-
-impl Error for RestarterError {
-    fn description(&self) -> &str {
-        &self.msg
-    }
-}
-
-pub fn run(config: Config) -> Result<i32, RestarterError> {
+pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
     let mut retry = config.retry;
 
     // all signals except for
@@ -85,38 +70,29 @@ pub fn run(config: Config) -> Result<i32, RestarterError> {
 
         let mut child = Command::new(&config.binary)
             .args(config.args.iter())
-            .spawn()
-            .map_err(|err| {
-                RestarterError::new(
-                    ("failed to execute child: ".to_string() + err.to_string().as_str()).as_str(),
-                )
-            })?;
+            .spawn()?;
 
         let child_pid = child.id() as libc::pid_t;
 
         loop {
             // try wait and forward signals
 
-            if let Some(_) = child.try_wait().map_err(|err| {
-                RestarterError::new(
-                    ("failed to wait on a child: ".to_string() + err.to_string().as_str()).as_str(),
-                )
-            })? {
+            if let Some(_) = child.try_wait()? {
                 break;
             }
 
             for sig in signals.pending() {
-                eprintln!("RESTARTER: Received signal {:?}", sig);
-                eprintln!("RESTARTER: Sending kill to {:?}", child_pid);
+                debug!("Received signal {:?}", sig);
+                debug!("Sending kill to {:?}", child_pid);
                 unsafe {
                     libc::kill(child_pid, sig); // ignoring errors
                 }
             }
         }
 
-        let estatus = child.wait().expect("RESTARTER: failed to wait on child");
+        let estatus = child.wait()?;
 
-        eprintln!("RESTARTER: child exist status: {}", estatus);
+        error!("child exist status: {}", estatus);
 
         match estatus.code() {
             // normal exit
@@ -140,14 +116,14 @@ pub fn run(config: Config) -> Result<i32, RestarterError> {
 
         if config.fast_fail_seconds != 0 {
             if start.elapsed().as_secs() < config.fast_fail_seconds {
-                eprintln!("RESTARTER: failing too fast, stop retrying");
+                error!("failing too fast, stop retrying");
                 break;
             };
         };
 
         if retry != 0 {
             retry = retry - 1;
-            eprintln!("RESTARTER: {} left to retry", retry);
+            debug!("{} left to retry", retry);
             if retry == 0 {
                 break;
             };
