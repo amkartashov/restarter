@@ -19,7 +19,7 @@ pub fn configure_logger() -> Result<(), Box<dyn Error>> {
         .unwrap_or("console".to_string());
 
     if log_encoder != "console" && log_encoder != "json" {
-        Err("RESTARTER_LOG_ENCODER can be `json` or `console` (default).")?
+        Err("RESTARTER_LOG_ENCODER can be `json` or `console` (default).")?;
     };
 
     if log_encoder == "console" {
@@ -129,6 +129,7 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
 
     let mut ecode;
 
+    // command retry loop
     loop {
         let start = Instant::now();
 
@@ -138,13 +139,8 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
 
         let child_pid = child.id() as libc::pid_t;
 
-        loop {
-            // try wait and forward signals
-
-            if let Some(_) = child.try_wait()? {
-                break;
-            }
-
+        // wait and forward signals
+        while child.try_wait()?.is_none() {
             for sig in signals.pending() {
                 debug!("Received signal {:?}", sig);
                 debug!("Sending kill to {:?}", child_pid);
