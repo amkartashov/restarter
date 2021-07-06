@@ -1,21 +1,27 @@
-load("@rules_rust//rust:rust.bzl", "rust_library", "rust_binary")
+load("@rules_rust//rust:rust.bzl", "rust_binary", "rust_library")
 
 rust_library(
     name = "restarter_lib",
-    crate_name = "restarter",
     srcs = ["src/lib.rs"],
+    crate_name = "restarter",
     deps = [
-        "//cargo:libc",
-        "//cargo:signal_hook",
-        "//cargo:log",
         "//cargo:env_logger",
+        "//cargo:libc",
+        "//cargo:log",
         "//cargo:serde_json",
+        "//cargo:signal_hook",
     ],
 )
 
 rust_binary(
     name = "restarter",
     srcs = ["src/main.rs"],
+    crate_name = "restarter",
+    rustc_flags = [
+        "--codegen=lto",
+        "-C",
+        "opt-level=3",
+    ],
     deps = [
         ":restarter_lib",
         "//cargo:log",

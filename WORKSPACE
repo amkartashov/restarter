@@ -12,7 +12,10 @@ http_archive(
 
 load("@rules_rust//rust:repositories.bzl", "rust_repositories")
 
-rust_repositories(version = "1.53.0", edition="2018")
+rust_repositories(
+    edition = "2018",
+    version = "1.53.0",
+)
 
 load("//cargo:crates.bzl", "raze_fetch_remote_crates")
 
