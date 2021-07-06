@@ -16,7 +16,8 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cache/bazelisk
-          key: ${{ runner.os }}-bazelisk-${{ hashFiles('.bazelversion') }}
+          key: ${{ runner.os }}-bazelisk-${{ hashFiles('**/.bazelversion') }}
+          restore-keys: ${{ runner.os }}-bazelisk-
       
       - name: Restore Bazel cache
         uses: actions/cache@v2
