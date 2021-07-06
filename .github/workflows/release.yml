@@ -1,0 +1,37 @@
+name: release
+on:
+  push:
+    tags:
+      - 0.*
+      - 1.*
+
+jobs:
+  release:
+    runs-on: ubuntu-20.04
+    permissions:
+      contents: write
+
+    steps:
+      - name: Restore Bazelisk cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/bazelisk
+          key: ${{ runner.os }}-bazelisk-${{ hashFiles('.bazelversion') }}
+      
+      - name: Restore Bazel cache
+        uses: actions/cache@v2
+        with:
+          path: ~/.cache/bazel
+          key: ${{ runner.os }}-bazel-${{ github.ref }}
+          restore-keys: ${{ runner.os }}-bazel-
+
+      - uses: actions/checkout@v2
+
+      - name: Build
+        run: bazelisk build :restarter
+
+      - name: Publish
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "bazel-bin/restarter"
+          token: ${{ secrets.GITHUB_TOKEN }}
