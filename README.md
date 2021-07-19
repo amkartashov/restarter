@@ -24,15 +24,19 @@ If **restarter** exits, it uses service exit code, or 128 + signal number which 
 
 By default, **restarter** will try to execute binary 3 times. This is controlled by the value of environment variable `RESTARTER_RETRIES`. Set it to `0` to retry indefinitely.
 
+**Restarter** resets retries counter if running process lasts more than 1 hour. You can change this value with `RESTARTER_RESET_RETRIES_SECONDS` and disable resetting with `RESTARTER_RESET_RETRIES_SECONDS=0`.
+
 Also, **restarter** will stop trying if the process fails to fast. By default, if process fails less than in 1 second, **restarter** will exit. You can change this behavior with environment variable `RESTARTER_FAST_FAIL_SECONDS`. If you set it to `0`, **restarter** will not check for fast failures.
 
-----
+---
+
 To sum up, **restater** will stop in below cases:
 
-1) number of retries is over;
-2) service fails too fast;
-3) service is killed with termination signal;
-4) service finished successfully.
+1. number of retries is over;
+2. service fails too fast;
+3. service is killed with termination signal;
+4. service finished successfully.
+
 ### Logging
 
 Logging is configured via env variables `RESTARTER_LOG` and `RESTARTER_LOG_ENCODER`.

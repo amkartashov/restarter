@@ -43,8 +43,8 @@ pub fn configure_logger() -> Result<(), Box<dyn Error>> {
         builder.format(|buf, record| {
             let ts = buf.timestamp_nanos();
             let level = match record.level().as_str() {
-                "WARN" => "WARNING",  // Google Cloud Logging expects WARNING: https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
-                other => other
+                "WARN" => "WARNING", // Google Cloud Logging expects WARNING: https://cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
+                other => other,
             };
             // for details, see https://cloud.google.com/logging/docs/structured-logging
             match (record.module_path(), record.file(), record.line()) {
@@ -86,6 +86,7 @@ pub struct Config {
     pub args: Vec<OsString>,
     pub retry: usize,
     pub fast_fail_seconds: u64,
+    pub reset_retries_seconds: u64,
 }
 
 impl Config {
@@ -107,11 +108,17 @@ impl Config {
             .and_then(|string| string.parse().ok())
             .unwrap_or(1);
 
+        let reset_retries_seconds = env::var_os("RESTARTER_RESET_RETRIES_SECONDS")
+            .and_then(|os_string| os_string.into_string().ok())
+            .and_then(|string| string.parse().ok())
+            .unwrap_or(3600);
+
         Ok(Config {
             binary,
             args,
             retry,
             fast_fail_seconds,
+            reset_retries_seconds,
         })
     }
 }
@@ -127,17 +134,22 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
     ])
     .unwrap();
 
-    let mut ecode;
+    let mut child; // child process
+    let mut child_pid; // process id
+    let mut start; // process start time
+    let mut elapsed; // process execution time
+    let mut estatus; // process exit status
+    let mut ecode; // process exit code
 
     // command retry loop
     loop {
-        let start = Instant::now();
+        start = Instant::now();
 
-        let mut child = Command::new(&config.binary)
+        child = Command::new(&config.binary)
             .args(config.args.iter())
             .spawn()?;
 
-        let child_pid = child.id() as libc::pid_t;
+        child_pid = child.id() as libc::pid_t;
 
         // wait and forward signals
         while child.try_wait()?.is_none() {
@@ -150,9 +162,13 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
             }
         }
 
-        let estatus = child.wait()?;
+        estatus = child.wait()?;
+        elapsed = start.elapsed().as_secs();
 
-        error!("child exist status: {}", estatus);
+        error!(
+            "child exist status: {}, execution time: {}s",
+            estatus, elapsed
+        );
 
         match estatus.code() {
             // normal exit
@@ -165,6 +181,7 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
                 ecode = 128 + sig_id;
                 // stop retrying if it was termination signal
                 if signal_hook::consts::TERM_SIGNALS.contains(&sig_id) {
+                    debug!("Killed with term signal {}, stop retrying", sig_id);
                     break;
                 };
             }
@@ -175,18 +192,27 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
         }
 
         if config.fast_fail_seconds != 0 {
-            if start.elapsed().as_secs() < config.fast_fail_seconds {
+            if elapsed < config.fast_fail_seconds {
                 error!("failing too fast, stop retrying");
                 break;
-            };
-        };
+            }
+        }
 
-        if retry != 0 {
+        // retry logic here
+        if config.retry > 0 {
+            if config.reset_retries_seconds > 0 && elapsed > config.reset_retries_seconds {
+                debug!(
+                    "last running process was stable for quite long ({}s), reset retries counter",
+                    elapsed
+                );
+                retry = config.retry;
+            }
+
             retry = retry - 1;
             debug!("{} left to retry", retry);
             if retry == 0 {
                 break;
-            };
+            }
         }
     }
 
