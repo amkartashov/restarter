@@ -127,10 +127,10 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
     let mut retry = config.retry;
 
     // all signals except for
-    // SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGABRT, SIGTRAP, SIGSYS, SIGTTIN, SIGTTOU, SIGCHLD, SIGSTOP, SIGKILL
+    // SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGABRT, SIGTRAP, SIGSYS, SIGTTIN, SIGTTOU, SIGSTOP, SIGKILL
     let mut signals = Signals::new(&[
         SIGALRM, SIGCONT, SIGHUP, SIGINT, SIGIO, SIGPIPE, SIGPROF, SIGQUIT, SIGTERM, SIGTSTP,
-        SIGURG, SIGUSR1, SIGUSR2, SIGVTALRM, SIGWINCH, SIGXCPU, SIGXFSZ,
+        SIGURG, SIGUSR1, SIGUSR2, SIGVTALRM, SIGWINCH, SIGXCPU, SIGXFSZ, SIGCHLD
     ])
     .unwrap();
 
@@ -152,21 +152,27 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
         child_pid = child.id() as libc::pid_t;
 
         // wait and forward signals
-        while child.try_wait()?.is_none() {
-            for sig in signals.pending() {
-                debug!("Received signal {:?}", sig);
-                debug!("Sending kill to {:?}", child_pid);
-                unsafe {
-                    libc::kill(child_pid, sig); // ignoring errors
-                }
-            }
+        for sig in signals.pending() {
+            debug!("Received signal {:?}", sig);
+            match sig {
+                SIGCHLD =>  {
+                    debug!("Child process finished");
+                    break;
+                },
+                _ => {
+                    debug!("Sending kill to {:?}", child_pid);
+                    unsafe {
+                        libc::kill(child_pid, sig); // ignoring errors
+                    }
+                },
+            };
         }
 
         estatus = child.wait()?;
         elapsed = start.elapsed().as_secs();
 
         error!(
-            "child exist status: {}, execution time: {}s",
+            "child exit status: {}, execution time: {}s",
             estatus, elapsed
         );
 
