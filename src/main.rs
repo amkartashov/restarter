@@ -1,4 +1,4 @@
-use log::{info, error};
+use log::{error, info};
 use restarter::{configure_logger, run, Config};
 use std::process;
 

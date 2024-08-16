@@ -37,6 +37,20 @@ To sum up, **restater** will stop in below cases:
 3. service is killed with termination signal;
 4. service finished successfully.
 
+### Force restart
+
+Sometimes you want force application restart. But application may stop with zero exit code and **restarter** will stop.
+
+With environment variables `RESTARTER_RESTART_SIGNAL` (signal number, not set by default) and `RESTARTER_RESTART_WAIT_SECONDS` (30 by default, 0 means forever) you can ask **restarter** to ignore zero exit code and restart stopped application anyway.
+
+F.e. you set `RESTARTER_RESTART_SIGNAL=10` (10 is the number of `SIGUSR1`, see `man 7 signal`) and `RESTARTER_RESTART_WAIT_SECONDS=60`.
+
+You send `SIGUSR1` to **restarter**. Now to stop application you can send `SIGTERM` to **restarter**, it will be forwarded to application, application will stop and **restarter** will start it again ignoring its exit code.
+
+However, if application stops with zero exit code after 60 seconds, **restarter** won't continue.
+
+This restart won't be counted against `RESTARTER_RETRIES`.
+
 ### Logging
 
 Logging is configured via env variables `RESTARTER_LOG` and `RESTARTER_LOG_ENCODER`.

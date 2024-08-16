@@ -87,6 +87,8 @@ pub struct Config {
     pub retry: usize,
     pub fast_fail_seconds: u64,
     pub reset_retries_seconds: u64,
+    pub restart_signal: i32,
+    pub restart_wait_seconds: u64,
 }
 
 impl Config {
@@ -113,12 +115,24 @@ impl Config {
             .and_then(|string| string.parse().ok())
             .unwrap_or(3600);
 
+        let restart_signal = env::var_os("RESTARTER_RESTART_SIGNAL")
+            .and_then(|os_string| os_string.into_string().ok())
+            .and_then(|string| string.parse().ok())
+            .unwrap_or(0);
+
+        let restart_wait_seconds = env::var_os("RESTARTER_RESTART_WAIT_SECONDS")
+            .and_then(|os_string| os_string.into_string().ok())
+            .and_then(|string| string.parse().ok())
+            .unwrap_or(30);
+
         Ok(Config {
             binary,
             args,
             retry,
             fast_fail_seconds,
             reset_retries_seconds,
+            restart_signal,
+            restart_wait_seconds,
         })
     }
 }
@@ -130,7 +144,7 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
     // SIGFPE, SIGILL, SIGSEGV, SIGBUS, SIGABRT, SIGTRAP, SIGSYS, SIGTTIN, SIGTTOU, SIGSTOP, SIGKILL
     let mut signals = Signals::new(&[
         SIGALRM, SIGCONT, SIGHUP, SIGINT, SIGIO, SIGPIPE, SIGPROF, SIGQUIT, SIGTERM, SIGTSTP,
-        SIGURG, SIGUSR1, SIGUSR2, SIGVTALRM, SIGWINCH, SIGXCPU, SIGXFSZ, SIGCHLD
+        SIGURG, SIGUSR1, SIGUSR2, SIGVTALRM, SIGWINCH, SIGXCPU, SIGXFSZ, SIGCHLD,
     ])
     .unwrap();
 
@@ -140,6 +154,10 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
     let mut elapsed; // process execution time
     let mut estatus; // process exit status
     let mut ecode; // process exit code
+
+    // variables to handle forced restart
+    let mut force_restart = false;
+    let mut restart_signal_start = Instant::now(); // time restart signal was received
 
     // command retry loop
     loop {
@@ -152,19 +170,31 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
         child_pid = child.id() as libc::pid_t;
 
         // wait and forward signals
-        for sig in signals.pending() {
+        for sig in &mut signals {
             debug!("Received signal {:?}", sig);
             match sig {
-                SIGCHLD =>  {
+                _x if _x == config.restart_signal => {
+                    if config.restart_wait_seconds > 0 {
+                        debug!(
+                            "Received restart signal, will restart if child exits within next {:?} seconds",
+                            config.restart_wait_seconds
+                        );
+                        restart_signal_start = Instant::now()
+                    } else {
+                        debug!("Received restart signal, will restart next time child exits");
+                    }
+                    force_restart = true
+                }
+                SIGCHLD => {
                     debug!("Child process finished");
                     break;
-                },
+                }
                 _ => {
-                    debug!("Sending kill to {:?}", child_pid);
+                    debug!("Forwarding signal to {:?}", child_pid);
                     unsafe {
                         libc::kill(child_pid, sig); // ignoring errors
                     }
-                },
+                }
             };
         }
 
@@ -175,6 +205,25 @@ pub fn run(config: Config) -> Result<i32, Box<dyn Error>> {
             "child exit status: {}, execution time: {}s",
             estatus, elapsed
         );
+
+        if force_restart {
+            if config.restart_wait_seconds > 0 {
+                let restart_signal_elapsed = restart_signal_start.elapsed().as_secs();
+                debug!(
+                    "Child exits {} seconds after restart signal",
+                    restart_signal_elapsed
+                );
+                if restart_signal_elapsed > config.restart_wait_seconds {
+                    force_restart = false
+                }
+            }
+
+            if force_restart {
+                force_restart = false;
+                debug!("Restarting child because of restart signal");
+                continue;
+            }
+        }
 
         match estatus.code() {
             // normal exit
