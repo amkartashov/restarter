@@ -1,6 +1,6 @@
 [package]
 name = "restarter"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -18,26 +18,3 @@ serde_json = "1.0.64"
 #codegen-units = 1   # Reduce number of codegen units to increase optimizations.
 #panic = 'abort'     # Abort on panic
 #strip = 'symbols'
-
-[package.metadata.raze]
-# The path at which to write output files.
-#
-# `cargo raze` will generate Bazel-compatible BUILD files into this path.
-# This can either be a relative path (e.g. "foo/bar"), relative to this
-# Cargo.toml file; or relative to the Bazel workspace root (e.g. "//foo/bar").
-workspace_path = "//cargo"
-
-# This causes aliases for dependencies to be rendered in the BUILD
-# file located next to this `Cargo.toml` file.
-package_aliases_dir = "cargo"
-
-# The set of targets to generate BUILD rules for.
-targets = [
-    "x86_64-apple-darwin",
-    "x86_64-unknown-linux-gnu",
-]
-
-# The two acceptable options are "Remote" and "Vendored" which
-# is used to indicate whether the user is using a non-vendored or
-# vendored set of dependencies.
-genmode = "Remote"
